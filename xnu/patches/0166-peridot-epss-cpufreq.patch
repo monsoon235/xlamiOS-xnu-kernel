@@ -10,7 +10,7 @@
  bsd/dev/munge.c 			optional config_requires_u32_munging
 --- /dev/null
 +++ b/bsd/dev/sweet_epss_peridot.c
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,71 @@
 +/* SPDX-License-Identifier: MIT */
 +/*
 + * peridot EPSS CPU frequency control.
@@ -30,6 +30,8 @@
 + * unconditionally, which is what a port that never wants less wants, and it
 + * leaves the row visible in the log.
 + */
++#include <sys/param.h>
++#include <sys/systm.h>
 +#include <kern/clock.h>
 +#include <pexpert/pexpert.h>
 +#include <machine/machine_routines.h>
@@ -44,6 +46,8 @@
 +#define PERIDOT_ALTERNATE_KHZ	300000u
 +
 +extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
++
++void sweet_peridot_epss_init(void);
 +
 +void
 +sweet_peridot_epss_init(void)
@@ -96,3 +100,4 @@
  		sweet_peridot_spi_init();
  		printf("SWEET PERIPHERALS: SM8635; SM7150 touch/USB probes withheld\n");
  	}
+
