@@ -1,0 +1,32 @@
+--- a/iokit/Kernel/arm/SweetFramebuffer.cpp
++++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
+@@ -232,14 +232,24 @@
+ 	if (!fVsyncPeriod) return false;
+ 	/* Exact20H392 reads CFNumber int values. Min interval is32.32 seconds;
+ 	 * step is mach_absolute_time ticks. Publish before registerService. */
+-	OSDictionary *refresh = OSDictionary::withCapacity(2);
+-	OSNumber *minimum = OSNumber::withNumber((1ULL << 32) / fVsyncHz, 32);
++	/* QuartzCore reads displayMinRefreshInterval/displayRefreshStepMachTime and
++	 * CoreMedia's FPSupport reads displayMaxRefreshInterval/displayRefreshStep;
++	 * with only the first pair published, FPSupport keeps maximumFramesPerSecond
++	 * at 60 and CoreAnimation makes an "internal_panel (fixed)" 60 Hz mode. The
++	 * intervals are 32.32 fixed point seconds; the Mach-time step is ticks. */
++	OSDictionary *refresh = OSDictionary::withCapacity(4);
++	OSNumber *min32 = OSNumber::withNumber((1ULL << 32) / fVsyncHz, 32);
++	OSNumber *max32 = OSNumber::withNumber((1ULL << 32) / fVsyncHz, 32);
++	OSNumber *step32 = OSNumber::withNumber((1ULL << 32) / fVsyncHz, 32);
+ 	OSNumber *step = fVsyncPeriod <= 0x7fffffffULL ? OSNumber::withNumber(fVsyncPeriod, 32) : NULL;
+-	bool refreshOK = refresh && minimum && step &&
+-	    refresh->setObject("displayMinRefreshInterval", minimum) &&
++	bool refreshOK = refresh && min32 && max32 && step32 && step &&
++	    refresh->setObject("displayMinRefreshInterval", min32) &&
++	    refresh->setObject("displayMaxRefreshInterval", max32) &&
++	    refresh->setObject("displayRefreshStep", step32) &&
+ 	    refresh->setObject("displayRefreshStepMachTime", step) &&
+ 	    setProperty("IOMFBDisplayRefresh", refresh);
+-	OSSafeReleaseNULL(minimum); OSSafeReleaseNULL(step); OSSafeReleaseNULL(refresh);
++	OSSafeReleaseNULL(min32); OSSafeReleaseNULL(max32); OSSafeReleaseNULL(step32);
++	OSSafeReleaseNULL(step); OSSafeReleaseNULL(refresh);
+ 	if (!refreshOK) {
+ 		IOLog("SWEET FB: refresh metadata allocation/publication failed\n");
+ 		return false;
