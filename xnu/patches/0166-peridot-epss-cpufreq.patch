@@ -1,13 +1,13 @@
 --- a/bsd/conf/files
 +++ b/bsd/conf/files
-@@ -111,6 +111,7 @@
- bsd/dev/sweet_rpmh.c			standard
- bsd/dev/sweet_spmi.c			standard
- bsd/dev/sweet_spmi_peridot.c		standard
+@@ -115,6 +115,7 @@
+ bsd/dev/sweet_gpi_peridot.c		standard
+ bsd/dev/sweet_rpmh_peridot.c		standard
+ bsd/dev/sweet_gpu_peridot.c		standard
 +bsd/dev/sweet_epss_peridot.c		standard
- bsd/dev/sweet_spi_peridot.c		standard
  bsd/dev/sweet_usb.c			standard
  bsd/dev/mem.c				standard
+ bsd/dev/munge.c 			optional config_requires_u32_munging
 --- /dev/null
 +++ b/bsd/dev/sweet_epss_peridot.c
 @@ -0,0 +1,67 @@
@@ -86,11 +86,11 @@
  extern void sweet_peridot_keys_init(void);
 +extern void sweet_peridot_epss_init(void);
  extern void sweet_peridot_spi_init(void);
+ extern void sweet_peridot_gpu_probe(void);
  extern void sweet_touch_init(void);
- extern void sweet_usb_probe(void);
-@@ -1113,6 +1114,7 @@
- 		sweet_usb_probe();
+@@ -1116,6 +1117,7 @@
  	} else {
+ 		sweet_peridot_gpu_probe();
  		sweet_peridot_keys_init();
 +		sweet_peridot_epss_init();
  		sweet_peridot_spi_init();
