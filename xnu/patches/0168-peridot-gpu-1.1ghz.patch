@@ -1,0 +1,11 @@
+--- a/bsd/dev/peridot_gpu_boot.c
++++ b/bsd/dev/peridot_gpu_boot.c
+@@ -281,7 +281,7 @@
+     if (!pgpu_collapsed(pgcb_read(cc,PGPU_GX_GDSCR))) return false;
+     bool prepared=pggx_prepare(io,smmu);
+     if (prepared) {
+-        uint32_t value=0,error=0,vote[]={30u|(4u<<8),1,1,1};
++        uint32_t value=0,error=0,vote[]={30u|(4u<<8),1,11,9};
+         prepared=pgcb_request(h,gmu,smmu,vote,4,sequence,true,false,&value,&error);
+     }
+     if (prepared) {
