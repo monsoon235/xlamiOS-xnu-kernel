@@ -10,7 +10,7 @@
  bsd/dev/mem.c				standard
 --- /dev/null
 +++ b/bsd/dev/sweet_epss_peridot.c
-@@ -0,0 +1,78 @@
+@@ -0,0 +1,67 @@
 +/* SPDX-License-Identifier: MIT */
 +/*
 + * peridot EPSS CPU frequency control.
