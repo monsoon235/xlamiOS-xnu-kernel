@@ -1,17 +1,26 @@
 #!/bin/bash
 # Pinned, portable constant-time AES for the SWEET legacy CBC/ECB API.
+# The upstream git server (www.bearssl.org/git/BearSSL) is frequently down
+# (HTTP 502), so fetch the release tarball instead. It carries the same
+# sources for the files staged below and is pinned by SHA-256.
 set -euo pipefail
 [[ "${MACHINE_CONFIG:-}" == SWEET ]] || exit 0
 [[ -f libkern/crypto/corecrypto_aes.c ]] || exit 1
-bearssl_sha=7bea48e5e850ab4cafbe68d3765cdaba13a86d6f
+bearssl_sha=6705bba1714961b41a728dfc5debbe348d2966c117649392f8c8139efc83ff14
+bearssl_url=https://bearssl.org/bearssl-0.6.tar.gz
 bearssl_tmp=$(mktemp -d)
 trap 'rm -rf "$bearssl_tmp"' EXIT
-git init -q "$bearssl_tmp"
-git -C "$bearssl_tmp" fetch -q --depth 1 \
-    https://www.bearssl.org/git/BearSSL "$bearssl_sha"
-git -C "$bearssl_tmp" checkout -q FETCH_HEAD
-[[ "$(git -C "$bearssl_tmp" rev-parse HEAD)" == "$bearssl_sha" ]]
-python3 - "$bearssl_tmp" <<'PY'
+curl -fsSL --retry 5 --retry-delay 3 --max-time 180 "$bearssl_url" -o "$bearssl_tmp/bearssl.tar.gz"
+if command -v sha256sum >/dev/null 2>&1; then
+    echo "${bearssl_sha}  $bearssl_tmp/bearssl.tar.gz" | sha256sum -c -
+else
+    echo "${bearssl_sha}  $bearssl_tmp/bearssl.tar.gz" | shasum -a 256 -c -
+fi
+tar -xzf "$bearssl_tmp/bearssl.tar.gz" -C "$bearssl_tmp"
+bearssl_src=$(find "$bearssl_tmp" -maxdepth 3 -name inner.h -path '*/src/*' -print -quit | sed 's|/src/inner.h$||')
+[[ -f "$bearssl_src/src/inner.h" ]] || { echo "BearSSL source root not found"; exit 1; }
+echo "Using BearSSL at $bearssl_src ($bearssl_sha)"
+python3 - "$bearssl_src" <<'PY'
 from pathlib import Path
 import shutil
 import sys
