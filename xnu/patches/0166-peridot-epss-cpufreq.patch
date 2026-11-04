@@ -1,0 +1,98 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -111,6 +111,7 @@
+ bsd/dev/sweet_rpmh.c			standard
+ bsd/dev/sweet_spmi.c			standard
+ bsd/dev/sweet_spmi_peridot.c		standard
++bsd/dev/sweet_epss_peridot.c		standard
+ bsd/dev/sweet_spi_peridot.c		standard
+ bsd/dev/sweet_usb.c			standard
+ bsd/dev/mem.c				standard
+--- /dev/null
++++ b/bsd/dev/sweet_epss_peridot.c
+@@ -0,0 +1,78 @@
++/* SPDX-License-Identifier: MIT */
++/*
++ * peridot EPSS CPU frequency control.
++ *
++ * The boot loader leaves each CPU frequency domain at a modest row of the
++ * hardware's frequency table and expects the operating system to ask for
++ * more. The EPSS block owns the clock source and the supply: writing the
++ * wanted row into PERF_STATE makes it switch both by itself, so a single
++ * register write per domain is all that is needed.
++ *
++ * Register layout: Linux drivers/cpufreq/qcom-cpufreq-hw.c ("epss" variant).
++ * Bases from the live peridot FDT: qcom,cpufreq-hw reg =
++ * 0x17d91000 (freq-domain0) 0x17d92000 (freq-domain1) 0x17d93000
++ * (freq-domain2), all 0x1000 bytes, "qcom,cpufreq-epss".
++ *
++ * Explicit peridotcpufreq=1 only: this raises every domain to its top row
++ * unconditionally, which is what a port that never wants less wants, and it
++ * leaves the row visible in the log.
++ */
++#include <kern/clock.h>
++#include <pexpert/pexpert.h>
++#include <machine/machine_routines.h>
++
++#define PERIDOT_EPSS_PHYS	0x17d91000UL
++#define PERIDOT_EPSS_SIZE	0x1000UL
++#define PERIDOT_EPSS_DOMAINS	3u
++#define PERIDOT_EPSS_TABLE	0x100u
++#define PERIDOT_EPSS_ROWS	40u
++#define PERIDOT_EPSS_STATE	0x320u
++#define PERIDOT_XO_KHZ		19200u
++#define PERIDOT_ALTERNATE_KHZ	300000u
++
++extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
++
++void
++sweet_peridot_epss_init(void)
++{
++	uint32_t on = 0;
++
++	if (!PE_parse_boot_argn("peridotcpufreq", &on, sizeof(on)) || on != 1)
++		return;
++	for (uint32_t domain = 0; domain < PERIDOT_EPSS_DOMAINS; domain++) {
++		vm_offset_t base = ml_io_map(PERIDOT_EPSS_PHYS + domain * PERIDOT_EPSS_SIZE,
++		    PERIDOT_EPSS_SIZE);
++		uint32_t top = 0, top_khz = 0, was;
++
++		if (!base) {
++			printf("PERIDOT CPUFREQ: domain %u map failed\n", domain);
++			continue;
++		}
++		for (uint32_t row = 0; row < PERIDOT_EPSS_ROWS; row++) {
++			uint32_t entry = *(volatile uint32_t *)(base + PERIDOT_EPSS_TABLE + 4 * row);
++			uint32_t khz = (entry >> 30) ? PERIDOT_XO_KHZ * (entry & 0xff)
++			    : PERIDOT_ALTERNATE_KHZ;
++
++			if (row > 0 && khz <= top_khz)
++				break;
++			top = row;
++			top_khz = khz;
++		}
++		was = *(volatile uint32_t *)(base + PERIDOT_EPSS_STATE);
++		*(volatile uint32_t *)(base + PERIDOT_EPSS_STATE) = top;
++		delay_for_interval(20, NSEC_PER_MSEC);
++		printf("PERIDOT CPUFREQ: domain %u row %u -> %u, %u MHz\n",
++		    domain, was, top, top_khz / 1000);
++	}
++}
+--- a/bsd/dev/sweet_ufs.c
++++ b/bsd/dev/sweet_ufs.c
+@@ -54,6 +54,7 @@
+ extern void sweet_sample_start(void);
+ extern void sweet_keys_init(void);
+ extern void sweet_peridot_keys_init(void);
++extern void sweet_peridot_epss_init(void);
+ extern void sweet_peridot_spi_init(void);
+ extern void sweet_touch_init(void);
+ extern void sweet_usb_probe(void);
+@@ -1113,6 +1114,7 @@
+ 		sweet_usb_probe();
+ 	} else {
+ 		sweet_peridot_keys_init();
++		sweet_peridot_epss_init();
+ 		sweet_peridot_spi_init();
+ 		printf("SWEET PERIPHERALS: SM8635; SM7150 touch/USB probes withheld\n");
+ 	}
